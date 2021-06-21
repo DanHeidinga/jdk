@@ -25,6 +25,8 @@
 #ifndef SHARE_CI_CICLASSLIST_HPP
 #define SHARE_CI_CICLASSLIST_HPP
 
+class StaticAnalzyer;
+
 class ciEnv;
 class ciObjectFactory;
 class ciConstantPoolCache;
@@ -119,5 +121,6 @@ friend class ciInstanceKlass;          \
 friend class ciArrayKlass;             \
 friend class ciObjArrayKlass;          \
 friend class ciTypeArrayKlass;         \
+friend class StaticAnalzyer;           \
 
 #endif // SHARE_CI_CICLASSLIST_HPP

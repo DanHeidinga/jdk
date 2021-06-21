@@ -226,6 +226,7 @@ extern "C" {
   void JNICALL JVM_RegisterPerfMethods(JNIEnv *env, jclass perfclass);
   void JNICALL JVM_RegisterWhiteBoxMethods(JNIEnv *env, jclass wbclass);
   void JNICALL JVM_RegisterVectorSupportMethods(JNIEnv *env, jclass vsclass);
+  void JNICALL JVM_RegisterDriverMethods(JNIEnv *env, jclass driverclass);
 #if INCLUDE_JVMCI
   jobject  JNICALL JVM_GetJVMCIRuntime(JNIEnv *env, jclass c);
   void     JNICALL JVM_RegisterJVMCINatives(JNIEnv *env, jclass compilerToVMClass);
@@ -253,6 +254,7 @@ static JNINativeMethod lookup_special_native_methods[] = {
   { CC"Java_jdk_jfr_internal_JVM_registerNatives",                 NULL, FN_PTR(jfr_register_natives)            },
 #endif
   { CC"Java_jdk_internal_misc_ScopedMemoryAccess_registerNatives", NULL, FN_PTR(JVM_RegisterJDKInternalMiscScopedMemoryAccessMethods) },
+  { CC"Java_jdk_internal_analysis_Driver_registerNatives",         NULL, FN_PTR(JVM_RegisterDriverMethods) },
 };
 
 static address lookup_special_native(const char* jni_name) {
