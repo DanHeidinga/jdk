@@ -156,6 +156,9 @@ ciMethod::ciMethod(const methodHandle& h_m, ciInstanceKlass* holder) :
 #endif
 
   CompilerOracle::tag_blackhole_if_possible(h_m);
+  stringStream ss;
+  this->print_impl(&ss);
+  printf("ciMethod:%s\n", ss.as_string());
 }
 
 
@@ -186,6 +189,9 @@ ciMethod::ciMethod(ciInstanceKlass* holder,
   // the holder has the wrong class loader (e.g. invokedynamic call
   // sites) so we pass the accessor.
   _signature = new (CURRENT_ENV->arena()) ciSignature(accessor, constantPoolHandle(), signature);
+  stringStream ss;
+  this->print_impl(&ss);
+  printf("ciMethod:%s\n", ss.as_string());
 }
 
 

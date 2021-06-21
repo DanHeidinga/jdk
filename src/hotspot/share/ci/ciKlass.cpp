@@ -43,6 +43,7 @@ ciKlass::ciKlass(Klass* k) : ciType(k) {
   Symbol* klass_name = klass->name();
   assert(klass_name != NULL, "wrong ciKlass constructor");
   _name = CURRENT_ENV->get_symbol(klass_name);
+  printf("ciKlass:<%s>\n", klass->name()->as_C_string());
 }
 
 // ------------------------------------------------------------------
@@ -53,6 +54,7 @@ ciKlass::ciKlass(Klass* k, ciSymbol* name) : ciType(k) {
   assert(get_Klass()->is_klass(), "wrong type");
   _name = name;
   _layout_helper = Klass::_lh_neutral_value;
+  printf("ciKlass:<%s>\n", k->name()->as_C_string());
 }
 
 // ------------------------------------------------------------------
@@ -62,6 +64,7 @@ ciKlass::ciKlass(Klass* k, ciSymbol* name) : ciType(k) {
 ciKlass::ciKlass(ciSymbol* name, BasicType bt) : ciType(bt) {
   _name = name;
   _layout_helper = Klass::_lh_neutral_value;
+  printf("ciKlass:<%s>\n", name->as_quoted_ascii());
 }
 
 // ------------------------------------------------------------------
@@ -189,6 +192,9 @@ ciKlass::least_common_ancestor(ciKlass* that) {
 // Find a klass using this klass's class loader.
 ciKlass* ciKlass::find_klass(ciSymbol* klass_name) {
   assert(is_loaded(), "cannot find_klass through an unloaded klass");
+  printf("ciKlass::find_klass: this(%s) finding(%s)\n", 
+    this->name()->as_quoted_ascii(),
+    klass_name->as_quoted_ascii());
   return CURRENT_ENV->get_klass_by_name(this,
                                         klass_name, false);
 }
