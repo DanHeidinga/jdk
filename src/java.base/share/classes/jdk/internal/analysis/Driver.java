@@ -2,6 +2,7 @@ package jdk.internal.analysis;
 
 import java.lang.reflect.Method;
 import java.util.Objects;
+import java.util.Scanner;
 
 public class Driver {
 	
@@ -32,7 +33,15 @@ public class Driver {
 
 		Method mainMethod = driver.getStartingPoint();
 
-		driver.analyze(mainMethod);
+		Thread thread = driver.get_compiler_thread();
+		System.out.println("===================== A =============");
+
+		driver.analyze(mainMethod, thread);
+		System.out.println("===================== B =============");
+		Thread.sleep(10);
+
+		Scanner sc = new Scanner(System.in);
+		sc.next();
 	}
 
 	Class<?> mainClass;
@@ -50,5 +59,7 @@ public class Driver {
 		return mainClass.getDeclaredMethod("main", String[].class);
 	}
 
-	native void analyze(Method m) throws Throwable;
+	native Thread get_compiler_thread();
+
+	native void analyze(Method m, Thread thread) throws Throwable;
 }
