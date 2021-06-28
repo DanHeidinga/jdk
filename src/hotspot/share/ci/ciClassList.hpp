@@ -25,7 +25,7 @@
 #ifndef SHARE_CI_CICLASSLIST_HPP
 #define SHARE_CI_CICLASSLIST_HPP
 
-class StaticAnalzyer;
+class StaticAnalyzer;
 
 class ciEnv;
 class ciObjectFactory;

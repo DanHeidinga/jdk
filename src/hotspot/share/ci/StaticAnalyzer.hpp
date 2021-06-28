@@ -15,12 +15,17 @@
 class StaticAnalyzer {
 private:
     ciEnv ci_env;
+	ciEnv *env;
 
 public:
 	StaticAnalyzer();
+	StaticAnalyzer(ciEnv *env);
 	
 	void analyze_method(Method *method);
 
+	static void thread_entry(JavaThread* thread, TRAPS);
 };
+
+
 
 #endif /* SHARE_CI_STATICANALYZER_HPP */
