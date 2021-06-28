@@ -29,6 +29,26 @@
 #include "runtime/sweeper.hpp"
 #include "runtime/thread.inline.hpp"
 
+CompilerThread::CompilerThread(CompileQueue* queue,
+                               CompilerCounters* counters,
+                               ThreadFunction entry_point)
+                               : JavaThread(entry_point) {
+  _env   = NULL;
+  _log   = NULL;
+  _task  = NULL;
+  _queue = queue;
+  _counters = counters;
+  _buffer_blob = NULL;
+  _compiler = NULL;
+
+  // Compiler uses resource area for compilation, let's bias it to mtCompiler
+  resource_area()->bias_to(mtCompiler);
+
+#ifndef PRODUCT
+  _ideal_graph_printer = NULL;
+#endif
+}
+
 // Create a CompilerThread
 CompilerThread::CompilerThread(CompileQueue* queue,
                                CompilerCounters* counters)

@@ -65,6 +65,7 @@ class CompilerThread : public JavaThread {
     return static_cast<CompilerThread*>(t);
   }
 
+  CompilerThread(CompileQueue* queue, CompilerCounters* counters, ThreadFunction entry_point);
   CompilerThread(CompileQueue* queue, CompilerCounters* counters);
   ~CompilerThread();
 

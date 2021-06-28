@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "jvm.h"
+#include "ci/StaticAnalyzer.hpp"
 #include "classfile/javaClasses.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/vmClasses.hpp"
@@ -191,7 +192,7 @@ CompilerStatistics CompileBroker::_stats_per_level[CompLevel_full_optimization];
 
 CompileQueue* CompileBroker::_c2_compile_queue     = NULL;
 CompileQueue* CompileBroker::_c1_compile_queue     = NULL;
-
+CompileQueue* CompileBroker::_analysis_queue     = NULL;
 
 
 class CompilationLog : public StringEventLog {
@@ -986,6 +987,7 @@ void CompileBroker::init_compiler_sweeper_threads() {
     _compiler1_objects = NEW_C_HEAP_ARRAY(jobject, _c1_count, mtCompiler);
     _compiler1_logs = NEW_C_HEAP_ARRAY(CompileLog*, _c1_count, mtCompiler);
   }
+  _analysis_queue = new CompileQueue("analysis queue");
 
   char name_buffer[256];
 
@@ -1146,6 +1148,63 @@ void CompileBroker::possibly_add_compiler_threads(JavaThread* THREAD) {
   }
 
   CompileThread_lock->unlock();
+}
+
+JavaThread* CompileBroker::create_analysis_compiler_thread(JavaThread* THREAD) {
+  JavaThread *ct = NULL;
+  julong available_memory = os::available_memory();
+  // If SegmentedCodeCache is off, both values refer to the single heap (with type CodeBlobType::All).
+  size_t available_cc_np  = CodeCache::unallocated_capacity(CodeBlobType::MethodNonProfiled),
+         available_cc_p   = CodeCache::unallocated_capacity(CodeBlobType::MethodProfiled);
+
+  Handle thread_oop = create_thread_oop("analysis_thread", THREAD);
+  jobject thread_handle = JNIHandles::make_global(thread_oop);
+
+  // Only do attempt to start additional threads if the lock is free.
+  CompileThread_lock->lock();
+  AbstractCompiler *comp = _compilers[1];
+  JavaThread* new_thread = NULL;
+  {
+    MutexLocker mu(THREAD, Threads_lock);
+    CompilerCounters* counters = new CompilerCounters();
+    new_thread = new CompilerThread(_analysis_queue, counters, &StaticAnalyzer::thread_entry);
+    java_lang_Thread::set_thread(JNIHandles::resolve_non_null(thread_handle), new_thread);
+
+    // Note that this only sets the JavaThread _priority field, which by
+    // definition is limited to Java priorities and not OS priorities.
+    // The os-priority is set in the CompilerThread startup code itself
+
+    java_lang_Thread::set_priority(JNIHandles::resolve_non_null(thread_handle), NearMaxPriority);
+
+    // Note that we cannot call os::set_priority because it expects Java
+    // priorities and we are *explicitly* using OS priorities so that it's
+    // possible to set the compiler thread priority higher than any Java
+    // thread.
+
+    int native_prio = CompilerThreadPriority;
+    if (native_prio == -1) {
+      if (UseCriticalCompilerThreadPriority) {
+        native_prio = os::java_to_os_priority[CriticalPriority];
+      } else {
+        native_prio = os::java_to_os_priority[NearMaxPriority];
+      }
+    }
+    os::set_native_priority(new_thread, native_prio);
+
+    java_lang_Thread::set_daemon(JNIHandles::resolve_non_null(thread_handle));
+
+    new_thread->set_threadObj(JNIHandles::resolve_non_null(thread_handle));
+    CompilerThread::cast(new_thread)->set_compiler(comp);
+    Threads::add(new_thread);
+    Thread::start(new_thread);
+  }
+
+  // Let go of Threads_lock before yielding
+  os::naked_yield(); // make sure that the compiler thread is started early (especially helpful on SOLARIS)
+  ct = new_thread;
+
+  CompileThread_lock->unlock();
+  return ct;
 }
 
 
@@ -1513,6 +1572,66 @@ nmethod* CompileBroker::compile_method(const methodHandle& method, int osr_bci,
     }
   }
   return method->lookup_osr_nmethod_for(osr_bci, comp_level, false);
+}
+
+void CompileBroker::analyze_method_base(const methodHandle& method,
+                                        int comp_level,
+                                        CompileTask::CompileReason compile_reason,
+                                        bool blocking,
+                                        Thread* thread) {
+  guarantee(!method->is_abstract(), "cannot compile abstract methods");
+  assert(method->method_holder()->is_instance_klass(),
+         "sanity check");
+  assert(!method->method_holder()->is_not_initialized(),
+         "method holder must be initialized");
+  assert(!method->is_method_handle_intrinsic(), "do not enqueue these guys");
+
+  JavaThread *THREAD = thread->as_Java_thread();
+  // TODO: Needed?
+  // Tiered policy requires MethodCounters to exist before adding a method to
+  // the queue. Create if we don't have them yet.
+  method->get_method_counters(thread);
+
+  // Outputs from the following MutexLocker block:
+  CompileTask* task = NULL;
+  CompileQueue* queue = CompileBroker::_analysis_queue;
+  const methodHandle& hot_method = method;
+  int hot_count = method->invocation_count();
+
+  int osr_bci = InvocationEntryBci;
+
+  //assert(!HAS_PENDING_EXCEPTION, "No exception should be present");
+  // some prerequisites that are compiler specific
+  if (true /*comp->is_c2()*/) {
+    method->constants()->resolve_string_constants(CHECK_AND_CLEAR_NONASYNC);
+    // Resolve all classes seen in the signature of the method
+    // we are compiling.
+    Method::load_signature_classes(method, CHECK_AND_CLEAR_NONASYNC);
+  }
+
+  // Acquire our lock.
+  {
+    MutexLocker locker(thread, MethodCompileQueue_lock);
+
+    // We now know that this compilation is not pending, complete,
+    // or prohibited.  Assign a compile_id to this compilation
+    // and check to see if it is in our [Start..Stop) range.
+    int compile_id = assign_compile_id(method, osr_bci);
+    if (compile_id == 0) {
+      // The compilation falls outside the allowed range.
+      return;
+    }
+
+    task = create_compile_task(queue,
+                               compile_id, method,
+                               osr_bci, comp_level,
+                               hot_method, hot_count, compile_reason,
+                               blocking);
+  }
+
+  if (blocking) {
+    wait_for_completion(task);
+  }
 }
 
 
@@ -1902,6 +2021,43 @@ CompileLog* CompileBroker::get_log(CompilerThread* ct) {
   return log;
 }
 
+void CompileBroker::analyze_thread_loop(CompilerThread* thread) {
+   while (true) {
+        // We need this HandleMark to avoid leaking VM handles.
+        HandleMark hm(thread);
+        CompilerThread *cThread = CompilerThread::cast(thread);
+        CompileQueue* queue = cThread->queue(); 
+printf("\n==== CompileBroker::analyze_thread_loop ====\n");
+        CompileTask* task = queue->get();
+        if (task == NULL) {
+            // do nothing
+        } else {
+            // Assign the task to the current thread.  Mark this compilation
+            // thread as active for the profiler.
+            // CompileTaskWrapper also keeps the Method* from being deallocated if redefinition
+            // occurs after fetching the compile task off the queue.
+            //CompileTaskWrapper ctw(task);
+            printf("\n==== got a task ====\n");
+            nmethodLocker result_handle;  // (handle for the nmethod produced by this task)
+            task->set_code_handle(&result_handle);
+            methodHandle method(thread, task->method());
+            {
+              ResourceMark rm(CompilerThread::current());
+
+              { // need to be in native for allocating the CI
+                ThreadToNativeFromVM ttn(CompilerThread::current()); //Dan
+                StaticAnalyzer sa(cThread->env());
+                { // must be in VM for allocating ci objects
+                  ThreadInVMfromNative tiv(CompilerThread::current());
+                  sa.analyze_method(task->method());
+                }
+              }
+              
+            }
+            printf("\n==== done analyzing ====\n");
+        }
+    }
+}
 // ------------------------------------------------------------------
 // CompileBroker::compiler_thread_loop
 //

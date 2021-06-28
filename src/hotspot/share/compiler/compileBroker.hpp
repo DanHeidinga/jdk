@@ -141,6 +141,7 @@ public:
 class CompileBroker: AllStatic {
  friend class Threads;
  friend class CompileTaskWrapper;
+ friend class StaticAnalyzer;
 
  public:
   enum {
@@ -177,6 +178,7 @@ class CompileBroker: AllStatic {
 
   static CompileQueue* _c2_compile_queue;
   static CompileQueue* _c1_compile_queue;
+  static CompileQueue* _analysis_queue;
 
   // performance counters
   static PerfCounter* _perf_total_compilation;
@@ -283,6 +285,13 @@ public:
     standard_entry_bci = InvocationEntryBci
   };
 
+  static JavaThread* create_analysis_compiler_thread(JavaThread* THREAD);
+  static void analyze_method_base(const methodHandle& method,
+                                        int comp_level,
+                                        CompileTask::CompileReason compile_reason,
+                                        bool blocking,
+                                        Thread* thread);
+
   static AbstractCompiler* compiler(int comp_level) {
     if (is_c2_compile(comp_level)) return _compilers[1]; // C2
     if (is_c1_compile(comp_level)) return _compilers[0]; // C1
@@ -319,6 +328,7 @@ public:
   // Acquire any needed locks and assign a compile id
   static uint assign_compile_id_unlocked(Thread* thread, const methodHandle& method, int osr_bci);
 
+  static void analyze_thread_loop(CompilerThread* thread);
   static void compiler_thread_loop();
   static uint get_compilation_id() { return _compilation_id; }
 
