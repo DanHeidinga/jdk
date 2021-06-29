@@ -2662,14 +2662,17 @@ void ciTypeFlow::df_flow_types(Block* start,
       assert (!blk->has_pre_order(), "");
       blk->set_next_pre_order();
 
-      if (_next_pre_order >= (int)Compile::current()->max_node_limit() / 2) {
-        // Too many basic blocks.  Bail out.
-        // This can happen when try/finally constructs are nested to depth N,
-        // and there is O(2**N) cloning of jsr bodies.  See bug 4697245!
-        // "MaxNodeLimit / 2" is used because probably the parser will
-        // generate at least twice that many nodes and bail out.
-        record_failure("too many basic blocks");
-        return;
+      if (Compile::current() != nullptr) { // HACK!  StaticAnalyzer doesn't have a "Compile"
+        if (_next_pre_order >= (int)Compile::current()->max_node_limit() / 2) {
+          // Too many basic blocks.  Bail out.
+          // This can happen when try/finally constructs are nested to depth N,
+          // and there is O(2**N) cloning of jsr bodies.  See bug 4697245!
+          // "MaxNodeLimit / 2" is used because probably the parser will
+          // generate at least twice that many nodes and bail out.
+          printf("\n\n\t\tmax_node_limit=%d\n",(int)Compile::current()->max_node_limit());
+          record_failure("too many basic blocks");
+          return;
+        }
       }
       if (do_flow) {
         flow_block(blk, temp_vector, temp_set);
