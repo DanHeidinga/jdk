@@ -2,6 +2,7 @@
 
 #include "ci/ciClassList.hpp"
 #include "ci/ciObjectFactory.hpp"
+#include "ci/ciTypeFlow.hpp"
 #include "classfile/vmClassMacros.hpp"
 #include "code/debugInfoRec.hpp"
 #include "code/dependencies.hpp"
@@ -45,6 +46,7 @@ void StaticAnalyzer::analyze_method(Method *initialMethod) {
         ciTypeFlow* type_flow = target->get_flow_analysis();
 
         printf("StaticAnalyzer::analyze_method generated flow\n");
+        type_flow->print_on(tty);
     }
 }
 
