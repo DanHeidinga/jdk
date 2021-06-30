@@ -3,6 +3,10 @@
 #include "ci/ciClassList.hpp"
 #include "ci/ciObjectFactory.hpp"
 #include "ci/ciTypeFlow.hpp"
+#include "ci/ciConstant.hpp"
+#include "ci/ciField.hpp"
+#include "ci/ciMethodBlocks.hpp"
+#include "ci/ciStreams.hpp"
 #include "classfile/vmClassMacros.hpp"
 #include "code/debugInfoRec.hpp"
 #include "code/dependencies.hpp"
@@ -20,6 +24,13 @@ StaticAnalyzer::StaticAnalyzer()
 StaticAnalyzer::StaticAnalyzer(ciEnv *env)
     : ci_env((CompileTask*)NULL)
     , env(env) { }
+
+void recordReferncedType(ciType *type) {
+    printf("ReferencedType: >");
+    fflush(stdout);
+    type->print_name();
+    printf("<\n");
+}
 
 void StaticAnalyzer::analyze_method(Method *initialMethod) {
     Thread *thead = Thread::current();
@@ -47,7 +58,93 @@ void StaticAnalyzer::analyze_method(Method *initialMethod) {
 
         printf("StaticAnalyzer::analyze_method generated flow\n");
         type_flow->print_on(tty);
+
+        printf("=== Processing the signature stream ===\n");
+        for (ciSignatureStream str(target->signature());
+            !str.at_return_type();
+            str.next()
+        ) {
+            recordReferncedType(str.type());
+        }
+        printf("=== Processing the bytecodes per block stream ===\n");
+        do_analysis(target);
     }
+}
+
+// based on bcEscapeAnalyzer
+void StaticAnalyzer::do_analysis(ciMethod *target) {
+  Arena* arena = CURRENT_ENV->arena();
+  // identify basic blocks
+  ciMethodBlocks *methodBlocks = target->get_method_blocks();
+
+  iterate_blocks(arena, target, methodBlocks);
+}
+
+// based on bcEscapeAnalyzer
+void StaticAnalyzer::iterate_blocks(Arena *arena, ciMethod *method, ciMethodBlocks *methodBlocks) {
+  int numblocks = methodBlocks->num_blocks();
+  int stkSize   = method->max_stack();
+  int numLocals = method->max_locals();
+
+  GrowableArray<ciBlock *> worklist(arena, numblocks / 4, 0, NULL);
+  GrowableArray<ciBlock *> successors(arena, 4, 0, NULL);
+
+  methodBlocks->clear_processed();
+
+  // initialize block 0 state from method signature
+  ciSignature* sig = method->signature();
+  ciBlock* first_blk = methodBlocks->block_containing(0);
+  int fb_i = first_blk->index();
+  for (int i = 0; i < sig->count(); i++) {
+    ciType* t = sig->type_at(i);
+    if (!t->is_primitive_type()) {
+      recordReferncedType(t);
+    }
+  }
+
+  worklist.push(first_blk);
+  while(worklist.length() > 0) {
+    ciBlock *blk = worklist.pop();
+    if (blk->is_handler() || blk->is_ret_target()) {
+      // for an exception handler or a target of a ret instruction, we assume the worst case,
+      // that any variable could contain any argument
+      
+    } else {
+      
+    }
+    iterate_one_block(blk, /* state, */ successors);
+    // if this block has any exception handlers, push them
+    // onto successor list
+    if (blk->has_handler()) {
+      DEBUG_ONLY(int handler_count = 0;)
+      int blk_start = blk->start_bci();
+      int blk_end = blk->limit_bci();
+      for (int i = 0; i < numblocks; i++) {
+        ciBlock *b = methodBlocks->block(i);
+        if (b->is_handler()) {
+          int ex_start = b->ex_start_bci();
+          int ex_end = b->ex_limit_bci();
+          if ((ex_start >= blk_start && ex_start < blk_end) ||
+              (ex_end > blk_start && ex_end <= blk_end)) {
+            successors.push(b);
+          }
+          DEBUG_ONLY(handler_count++;)
+        }
+      }
+      assert(handler_count > 0, "must find at least one handler");
+    }
+    // merge computed variable state with successors
+    // while(successors.length() > 0) {
+    //   ciBlock *succ = successors.pop();
+    //   merge_block_states(blockstates, succ, &state);
+    //   if (!succ->processed())
+    //     worklist.push(succ);
+    // }
+  }
+}
+
+// based on BCEscapeAnalyzer
+void StaticAnalyzer::iterate_one_block(ciBlock *blk, GrowableArray<ciBlock *> &successors) {
 }
 
 void StaticAnalyzer::thread_entry(JavaThread* thread, TRAPS) {

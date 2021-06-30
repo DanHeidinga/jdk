@@ -4,6 +4,7 @@
 #include "ci/ciClassList.hpp"
 #include "ci/ciEnv.hpp"
 #include "ci/ciObjectFactory.hpp"
+#include "ci/ciMethodBlocks.hpp"
 #include "classfile/vmClassMacros.hpp"
 #include "code/debugInfoRec.hpp"
 #include "code/dependencies.hpp"
@@ -22,6 +23,9 @@ public:
 	StaticAnalyzer(ciEnv *env);
 	
 	void analyze_method(Method *method);
+	void do_analysis(ciMethod *target);
+	void iterate_blocks(Arena *arena, ciMethod *method, ciMethodBlocks *methodBlocks);
+	void iterate_one_block(ciBlock *blk, GrowableArray<ciBlock *> &successors);
 
 	static void thread_entry(JavaThread* thread, TRAPS);
 };
