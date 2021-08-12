@@ -80,6 +80,7 @@ void CompilerThread::thread_entry(JavaThread* thread, TRAPS) {
 }
 
 bool CompilerThread::can_call_java() const {
+  if (true /* StaticAnalzyer temp hack */) { return true; }
   return _compiler != NULL && _compiler->is_jvmci();
 }
 
