@@ -18,6 +18,11 @@ private:
     ciEnv ci_env;
 	ciEnv *env;
 
+	ciMethod *_method;
+	ciMethodBlocks *_methodBlocks;
+	//TODO: GrowableArray of ciKlasses to load
+	GrowableArray<ciType *> _discovered_klasses;
+
 public:
 	StaticAnalyzer();
 	StaticAnalyzer(ciEnv *env);
@@ -25,9 +30,12 @@ public:
 	void analyze_method(Method *method);
 	void do_analysis(ciMethod *target);
 	void iterate_blocks(Arena *arena, ciMethod *method, ciMethodBlocks *methodBlocks);
-	void iterate_one_block(ciBlock *blk, GrowableArray<ciBlock *> &successors);
+	void iterate_one_block(ciBlock *blk, ciMethod *method, ciMethodBlocks *methodBlocks, GrowableArray<ciBlock *> &successors);
 
 	static void thread_entry(JavaThread* thread, TRAPS);
+
+	void enqueueMethod(ciMethod *method);
+	void recordReferencedType(ciType *type);
 };
 
 

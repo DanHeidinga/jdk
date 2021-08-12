@@ -2050,6 +2050,9 @@ printf("\n==== CompileBroker::analyze_thread_loop ====\n");
                 { // must be in VM for allocating ci objects
                   ThreadInVMfromNative tiv(CompilerThread::current());
                   sa.analyze_method(task->method());
+                  // TODO: reflect back into Java the:
+                  // - methods we've enqueued that need further processing
+                  // - the various sets of classes - instantiated, discovered, etc
                 }
               }
               
