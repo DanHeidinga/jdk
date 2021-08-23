@@ -3,6 +3,8 @@ package jdk.internal.analysis;
 import java.lang.reflect.Method;
 import java.util.Objects;
 import java.util.Scanner;
+import java.util.Set;
+import java.util.HashSet;
 
 public class Driver {
 	
@@ -10,6 +12,53 @@ public class Driver {
     static {
         registerNatives();
     }
+
+	
+	// TODO: use records?
+	class MethodTask {
+		final Class<?> holder;
+		final long methodPtr;
+		final int callingBytecode; // one of { invokevirtual, invokespecial, invokestatic, invokeinterface }
+
+		public MethodTask(Class<?> holder, long method, int bytecode) {
+			this.holder = holder;
+			this.methodPtr = method;
+			this.callingBytecode = bytecode;
+		}
+
+		public boolean equals(Object o) {
+			if (o == this) { return true; }
+			if (o instanceof MethodTask) {
+				MethodTask m = (MethodTask) o;
+				if (this.holder == m.holder && this.methodPtr == m.methodPtr && this.callingBytecode == m.callingBytecode) {
+					return true;
+				}
+			}
+			return false;
+		}
+		
+		public int hashCode() {
+			return (int)((((methodPtr >> 2 /* remove low 00 bits */) * 19 ) + callingBytecode) * 19 + holder.hashCode());
+		}
+	}
+
+	Set<MethodTask> methodQueue = new HashSet<MethodTask>();
+	Set<MethodTask> processedMethods = new HashSet<MethodTask>();
+	/**
+	 * Enqueue a method on the methodQueue.
+	 * 
+	 * @param holder the definiing class of the method
+	 * @param method a pointer to a Method MetaData
+	 * @param bytecode the bytecode used to call the method
+	 */
+	public synchronized void enqueueMethod(Class<?> holder, long method, int bytecode) {
+		MethodTask mt = new MethodTask(holder, method, bytecode);
+		if (!processedMethods.contains(mt)) {
+			methodQueue.add(mt);
+		}
+	}
+
+
 
 	/**
 	 * Entrypoint for the ci-based analysis engine.
