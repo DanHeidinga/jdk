@@ -12,8 +12,15 @@ BCReachabilityAnalyzer::BCReachabilityAnalyzer(ciMethod* method, BCReachabilityA
   , _methodBlocks(nullptr)
   , _parent(parent)
   , _discovered_klasses(_arena, 4, 0, NULL)
+  , _callees(_arena, 4, 0, NULL)
 {
-  // TODO
+  do_analysis();
+}
+
+void BCReachabilityAnalyzer::do_analysis() {
+  // identify basic blocks
+  _methodBlocks = _method->get_method_blocks();
+  iterate_blocks();
 }
 
 void BCReachabilityAnalyzer::iterate_blocks() {
@@ -595,4 +602,5 @@ void BCReachabilityAnalyzer::enqueueMethod(ciMethod *method) {
   // method->print_name(&ss);
   // printf("Enqueue Method: >%s||Loaded=%s", ss.as_string(), method->is_loaded() ? "Y" : "N");
   // printf("<\n");
+  _callees.append(method);
 }

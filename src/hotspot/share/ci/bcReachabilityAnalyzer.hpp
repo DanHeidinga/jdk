@@ -16,6 +16,7 @@ private:
   BCReachabilityAnalyzer *_parent;
 
   GrowableArray<ciType *> _discovered_klasses;
+  GrowableArray<ciMethod *> _callees;
 
 private:
   void iterate_blocks();
@@ -28,8 +29,15 @@ private:
  public:
   BCReachabilityAnalyzer(ciMethod* method, BCReachabilityAnalyzer* parent = NULL);
 
+  void do_analysis();
+
   BCReachabilityAnalyzer* parent() { return _parent; }
   ciMethod* method() const { return _method; }
+
+  GrowableArray<ciMethod *> get_callees() {
+    return _callees;
+  }
+
 };
 
 #endif //SHARE_CI_BCREACHABILITYANALYZER_HPP
