@@ -18,3 +18,12 @@ NashornProfile.txt
 /src/utils/LogCompilation/target/
 /.project/
 /.settings/
+hs_err_*.log
+replay_pid*.log
+**/.project
+**/org.eclipse.core.resources.prefs
+**/org.eclipse.jdt.apt.core.prefs
+**/org.eclipse.jdt.core.prefs
+**/org.eclipse.m2e.core.prefs
+**/.factorypath
+**/.classpath
