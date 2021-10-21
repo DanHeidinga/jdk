@@ -179,7 +179,7 @@ DirectiveSet* CompilerDirectives::get_for(AbstractCompiler *comp) {
     return _c2_store;
   } else {
     // use c1_store as default
-    assert(comp->is_c1() || comp->is_jvmci(), "");
+    assert(comp->is_c1() || comp->is_jvmci() || comp->is_sa(), "");
     return _c1_store;
   }
 }
