@@ -38,6 +38,10 @@ private:
     return _callees;
   }
 
+  GrowableArray<ciType *> get_classes() {
+    return _discovered_klasses;
+  }
+
 };
 
 #endif //SHARE_CI_BCREACHABILITYANALYZER_HPP
