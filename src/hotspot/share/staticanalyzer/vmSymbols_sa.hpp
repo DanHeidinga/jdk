@@ -28,6 +28,9 @@
 #define JVMSA_VM_SYMBOLS_DO(template)                                                                                 \
   template(jdk_internal_staticanalysis_StaticAnalyzer,                  "jdk/internal/staticanalysis/StaticAnalyzer") \
   template(addToQueue_name,                                             "addToQueue") \
-  template(addToQueue_name_signature,                                   "([J)V") \
+  template(addToQueueA_signature,                                       "([J)V") \
+  template(addDiscoveredClass_name,                                     "addDiscoveredClass") \
+  template(enqueueReflectMethod_name,                                   "enqueueReflectMethod") \
+  template(enqueueReflectMethod_signature,                              "(Ljava/lang/reflect/Method;)V") \
 
 #endif /* SHARE_STATICANALYZER_SAVMSYMBOLS_HPP */

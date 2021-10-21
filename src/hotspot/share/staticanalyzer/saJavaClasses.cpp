@@ -31,6 +31,7 @@
 #include "oops/instanceKlass.hpp"
 #include "oops/klass.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
+#include "runtime/javaCalls.hpp"
 #include "runtime/jniHandles.inline.hpp"
 #include "staticanalyzer/saJavaClasses.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -51,6 +52,24 @@ JVM_ENTRY(jboolean, SA_analyze(JNIEnv *env, jclass saClass, jlongArray handles))
       methodHandle mh(thread, method);
       CompilationPolicy::analyze(mh, CHECK_(JNI_FALSE));
     }
+  }
+  return JNI_TRUE;
+JVM_END
+
+JVM_ENTRY(jboolean, SA_enqueueReflectMethod(JNIEnv *env, jclass saClass, jobject method))
+  if (method != NULL) {
+    jmethodID mid = 0;
+    {
+      ThreadToNativeFromVM ttn(thread);
+      mid = env->FromReflectedMethod(method);
+    }
+    Method* initialMethod = Method::checked_resolve_jmethod_id(mid);
+
+    JavaValue result(T_VOID);
+    JavaCallArguments args;
+    args.push_long((jlong)initialMethod);
+    printf("Enqueueing %p\n", initialMethod);
+    JavaCalls::call_static(&result, jdk_internal_staticanalysis_StaticAnalyzer::klass(), vmSymbols::addToQueue_name(), vmSymbols::long_void_signature(), &args, THREAD);
   }
   return JNI_TRUE;
 JVM_END
@@ -86,7 +105,8 @@ JVM_END
 #define FN_PTR(f) CAST_FROM_FN_PTR(void*, &(SA_ ## f))
 
 JNINativeMethod jdk_internal_staticanalysis_StaticAnalyzer::methods[] = {
-  {CC "analyze", CC "([J)V", FN_PTR(analyze)},
+  {CC "analyze", CC "([J)Z", FN_PTR(analyze)},
+  {CC "enqueueReflectMethod", CC "(Ljava/lang/reflect/Method;)Z", FN_PTR(enqueueReflectMethod)}
 };
 
 int jdk_internal_staticanalysis_StaticAnalyzer::methods_count() {
