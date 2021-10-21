@@ -24,6 +24,7 @@
 
 #include "ci/bcReachabilityAnalyzer.hpp"
 #include "classfile/symbolTable.hpp"
+#include "classfile/systemDictionary.hpp"
 #include "compiler/compilerDirectives.hpp"
 #include "memory/oopFactory.hpp"
 #include "runtime/handles.inline.hpp"
